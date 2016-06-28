@@ -87,13 +87,15 @@ func (b *backend) pathLoginRenew(req *logical.Request, data *framework.FieldData
 	}
 }
 
-const pathLoginHelpSys = "Issue a token for a given pair of 'selector' and 'secret_id'."
+const pathLoginHelpSys = "Issue a token based on the credentials supplied"
 
-const pathLoginHelpDesc = `The supplied SecretID could've been generated/assigned against an
-individual Role, or a Group or a 'supergroup' combination of both.
-The respective 'selector' for these categories of SecretIDs are
-'role/<role_name>', 'group/<group_name>' or 'supergroup'. The supplied
-credentials <'selector','secret_id'> are validated and a Vault token
-is issued with effective capabilities to access the participating
-Roles.
-`
+const pathLoginHelpDesc = `
+While the credential 'selector_id' is required at all times,
+other credentials required depends on the properties App role
+to which the 'selector_id' belongs to. The 'bound_secret_id'
+constraint (enabled by default) on the App role requires the
+'secret_id' credential to be presented.
+
+'selector_id' is fetched using the 'role/<role_name>/selector_id'
+endpoint and 'secret_id' is fetched using the 'role/<role_name>/secret_id'
+endpoint.`

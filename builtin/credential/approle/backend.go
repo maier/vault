@@ -79,7 +79,7 @@ func Backend(conf *logical.BackendConfig) (*backend, error) {
 	}
 
 	// Have an extra lock to use in case the indexing does not result in a lock.
-	// This hroleens if the indexing value is not beginning with hex characters.
+	// This happens if the indexing value is not beginning with hex characters.
 	// These locks can be used for listing purposes as well.
 	b.secretIDLocksMap["custom"] = &sync.RWMutex{}
 	b.selectorIDLocksMap["custom"] = &sync.RWMutex{}

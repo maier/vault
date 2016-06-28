@@ -334,7 +334,7 @@ its next renewal.`,
 				},
 				"metadata": &framework.FieldSchema{
 					Type: framework.TypeString,
-					Description: `Metadata that should be tied to the SecretID. This should be a JSON
+					Description: `Metadata to be tied to the SecretID. This should be a JSON
 formatted string containing the metadata in key value pairs.`,
 				},
 			},
@@ -377,7 +377,7 @@ formatted string containing the metadata in key value pairs.`,
 				},
 				"metadata": &framework.FieldSchema{
 					Type: framework.TypeString,
-					Description: `Metadata that should be tied to the SecretID. This should be a JSON
+					Description: `Metadata to be tied to the SecretID. This should be a JSON
 formatted string containing metadata in key value pairs.`,
 				},
 			},
@@ -737,6 +737,7 @@ func (b *backend) pathRoleSecretIDAccessorRead(req *logical.Request, data *frame
 		return nil, err
 	}
 
+	result.SecretIDTTL /= time.Second
 	return &logical.Response{
 		Data: structs.New(result).Map(),
 	}, nil
