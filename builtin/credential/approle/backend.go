@@ -23,11 +23,11 @@ type backend struct {
 	// operation. So, using a single lock would suffice.
 	roleLock *sync.RWMutex
 
-	// Map of locks to make changes to the storage entries of SelectorIDs
+	// Map of locks to make changes to the storage entries of RoleIDs
 	// generated. This will be initiated to a predefined number of locks
 	// when the backend is created, and will be indexed based on the salted
-	// SelectorIDs.
-	selectorIDLocksMap map[string]*sync.RWMutex
+	// RoleIDs.
+	roleIDLocksMap map[string]*sync.RWMutex
 
 	// Map of locks to make changes to the storage entries of SecretIDs
 	// generated. This will be initiated to a predefined number of locks
@@ -61,20 +61,20 @@ func Backend(conf *logical.BackendConfig) (*backend, error) {
 		// Create the lock for making changes to the Roles registered with the backend
 		roleLock: &sync.RWMutex{},
 
-		// Create the map of locks to modify the generated SelectorIDs.
-		selectorIDLocksMap: map[string]*sync.RWMutex{},
+		// Create the map of locks to modify the generated RoleIDs.
+		roleIDLocksMap: map[string]*sync.RWMutex{},
 
 		// Create the map of locks to modify the generated SecretIDs.
 		secretIDLocksMap: map[string]*sync.RWMutex{},
 	}
 
-	// Create 256 of locks each for managing SelectorID and SecretIDs. This will avoid
-	// a superfluous number of locks directly proportional to the number of SelectorID
+	// Create 256 of locks each for managing RoleID and SecretIDs. This will avoid
+	// a superfluous number of locks directly proportional to the number of RoleID
 	// and SecretIDs. These locks can be accessed by indexing based on the first two
 	// characters of a randomly generated UUID.
 	for i := int64(0); i < 256; i++ {
 		index := fmt.Sprintf("%02x", i)
-		b.selectorIDLocksMap[index] = &sync.RWMutex{}
+		b.roleIDLocksMap[index] = &sync.RWMutex{}
 		b.secretIDLocksMap[index] = &sync.RWMutex{}
 	}
 
@@ -82,7 +82,7 @@ func Backend(conf *logical.BackendConfig) (*backend, error) {
 	// This happens if the indexing value is not beginning with hex characters.
 	// These locks can be used for listing purposes as well.
 	b.secretIDLocksMap["custom"] = &sync.RWMutex{}
-	b.selectorIDLocksMap["custom"] = &sync.RWMutex{}
+	b.roleIDLocksMap["custom"] = &sync.RWMutex{}
 
 	// Attach the paths and secrets that are to be handled by the backend
 	b.Backend = &framework.Backend{
@@ -120,8 +120,8 @@ func (b *backend) periodicFunc(req *logical.Request) error {
 const backendHelp = `
 Any registered Role can authenticate itself with Vault. The credentials
 depends on the bounds (or constraints) that are set on the Role. One
-common required credential is the 'selector_id' which is a unique
-identifier of the Role. It can be retrieved from the 'role/<appname>/selector-id'
+common required credential is the 'role_id' which is a unique
+identifier of the Role. It can be retrieved from the 'role/<appname>/role-id'
 endpoint.
 
 The default bound configuration is 'bound_secret_id', which requires

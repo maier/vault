@@ -33,15 +33,15 @@ func (b *backend) tidySecretID(s logical.Storage) error {
 		return fmt.Errorf("SecretID tidy operation already running")
 	}
 
-	saltedSelectors, err := s.List("secret_id/")
+	saltedRoleIDs, err := s.List("secret_id/")
 	if err != nil {
 		return err
 	}
 
 	var result error
-	for _, saltedSelector := range saltedSelectors {
-		// saltedSelector will already have a '/' suffix. Don't roleend another one.
-		secretIDHMACs, err := s.List(fmt.Sprintf("secret_id/%s", saltedSelector))
+	for _, saltedRoleID := range saltedRoleIDs {
+		// saltedRoleID will already have a '/' suffix. Don't roleend another one.
+		secretIDHMACs, err := s.List(fmt.Sprintf("secret_id/%s", saltedRoleID))
 		if err != nil {
 			return err
 		}
@@ -50,8 +50,8 @@ func (b *backend) tidySecretID(s logical.Storage) error {
 			// grab the write lock.
 			lock := b.secretIDLock(secretIDHMAC)
 			lock.Lock()
-			// saltedSelector will already have a '/' suffix. Don't roleend another one.
-			entryIndex := fmt.Sprintf("secret_id/%s%s", saltedSelector, secretIDHMAC)
+			// saltedRoleID will already have a '/' suffix. Don't roleend another one.
+			entryIndex := fmt.Sprintf("secret_id/%s%s", saltedRoleID, secretIDHMAC)
 			secretIDEntry, err := s.Get(entryIndex)
 			if err != nil {
 				lock.Unlock()

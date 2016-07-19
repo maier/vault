@@ -18,7 +18,7 @@ import (
 type roleStorageEntry struct {
 	// UUID that uniquely represents this Role. This serves as a credential
 	// to perform login using this Role.
-	SelectorID string `json:"selector_id" structs:"selector_id" mapstructure:"selector_id"`
+	RoleID string `json:"role_id" structs:"role_id" mapstructure:"role_id"`
 
 	// UUID that serves as the HMAC key for the hashing the 'secret_id's
 	// of the Role
@@ -68,7 +68,7 @@ type roleStorageEntry struct {
 // role/<role_name>/bound-secret-id - For updating the param
 // role/<role_name>/bound-cidr-list - For updating the param
 // role/<role_name>/period - For updating the param
-// role/<role_name>/selector-id - For fetching the selector_id of an Role
+// role/<role_name>/role-id - For fetching the role_id of an Role
 // role/<role_name>/secret-id - For issuing a secret_id against an Role, also to list the secret_id_accessorss
 // role/<role_name>/secret-id/<secret_id_accessor> - For reading the properties of, or deleting a secret_id
 // role/<role_name>/custom-secret-id - For assigning a custom SecretID against an Role
@@ -312,7 +312,7 @@ its next renewal.`,
 			HelpDescription: strings.TrimSpace(roleHelp["role-token-max-ttl"][1]),
 		},
 		&framework.Path{
-			Pattern: "role/" + framework.GenericNameRegex("role_name") + "/selector-id$",
+			Pattern: "role/" + framework.GenericNameRegex("role_name") + "/role-id$",
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
@@ -320,10 +320,10 @@ its next renewal.`,
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.ReadOperation: b.pathRoleSelectorIDRead,
+				logical.ReadOperation: b.pathRoleRoleIDRead,
 			},
-			HelpSynopsis:    strings.TrimSpace(roleHelp["role-selector-id"][0]),
-			HelpDescription: strings.TrimSpace(roleHelp["role-selector-id"][1]),
+			HelpSynopsis:    strings.TrimSpace(roleHelp["role-id"][0]),
+			HelpDescription: strings.TrimSpace(roleHelp["role-id"][1]),
 		},
 		&framework.Path{
 			Pattern: "role/" + framework.GenericNameRegex("role_name") + "/secret-id/?$",
@@ -435,7 +435,7 @@ func (b *backend) pathRoleSecretIDList(req *logical.Request, data *framework.Fie
 
 	// Listing works one level at a time. Get the first level of data
 	// which could then be used to get the actual SecretID storage entries.
-	secretIDHMACs, err := req.Storage.List(fmt.Sprintf("secret_id/%s/", b.salt.SaltID(role.SelectorID)))
+	secretIDHMACs, err := req.Storage.List(fmt.Sprintf("secret_id/%s/", b.salt.SaltID(role.RoleID)))
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +443,7 @@ func (b *backend) pathRoleSecretIDList(req *logical.Request, data *framework.Fie
 	var listItems []string
 	for _, secretIDHMAC := range secretIDHMACs {
 		// Prepare the full index of the SecretIDs.
-		entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.SelectorID), secretIDHMAC)
+		entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.RoleID), secretIDHMAC)
 
 		// SecretID locks are not indexed by SecretIDs itself.
 		// This is because SecretIDs are not stored in plaintext
@@ -473,7 +473,7 @@ func (b *backend) pathRoleSecretIDList(req *logical.Request, data *framework.Fie
 }
 
 // setRoleEntry grabs a write lock and stores the options on an Role into the storage.
-// Also creates a reverse index from the Role's SelectorID to the Role itself.
+// Also creates a reverse index from the Role's RoleID to the Role itself.
 func (b *backend) setRoleEntry(s logical.Storage, roleName string, role *roleStorageEntry) error {
 	b.roleLock.Lock()
 	defer b.roleLock.Unlock()
@@ -490,9 +490,9 @@ func (b *backend) setRoleEntry(s logical.Storage, roleName string, role *roleSto
 		return err
 	}
 
-	// Create a storage entry for reverse mroleing of SelectorID to Role.
+	// Create a storage entry for reverse mroleing of RoleID to Role.
 	// Note that secondary index is created when the roleLock is held.
-	return b.setSelectorIDEntry(s, role.SelectorID, &selectorIDStorageEntry{
+	return b.setRoleIDEntry(s, role.RoleID, &roleIDStorageEntry{
 		Type: "role",
 		Name: roleName,
 	})
@@ -536,17 +536,17 @@ func (b *backend) pathRoleCreateUpdate(req *logical.Request, data *framework.Fie
 
 	// Create a new entry object if this is a CreateOperation
 	if role == nil && req.Operation == logical.CreateOperation {
-		selectorID, err := uuid.GenerateUUID()
+		roleID, err := uuid.GenerateUUID()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create selector_id: %s\n", err)
+			return nil, fmt.Errorf("failed to create role_id: %s\n", err)
 		}
 		hmacKey, err := uuid.GenerateUUID()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create selector_id: %s\n", err)
+			return nil, fmt.Errorf("failed to create role_id: %s\n", err)
 		}
 		role = &roleStorageEntry{
-			SelectorID: selectorID,
-			HMACKey:    hmacKey,
+			RoleID:  roleID,
+			HMACKey: hmacKey,
 		}
 	} else if role == nil {
 		return nil, fmt.Errorf("Role entry not found when the requested operation is to update it")
@@ -647,7 +647,7 @@ func (b *backend) pathRoleRead(req *logical.Request, data *framework.FieldData) 
 
 		// Create a map of data to be returned and remove sensitive information from it
 		data := structs.New(role).Map()
-		delete(data, "selector_id")
+		delete(data, "role_id")
 		delete(data, "hmac_key")
 
 		return &logical.Response{
@@ -673,16 +673,16 @@ func (b *backend) pathRoleDelete(req *logical.Request, data *framework.FieldData
 	defer b.roleLock.Unlock()
 
 	// Just before the role is deleted, remove all the SecretIDs issued as part of the role.
-	if err = b.flushSelectorSecrets(req.Storage, role.SelectorID); err != nil {
+	if err = b.flushRoleSecrets(req.Storage, role.RoleID); err != nil {
 		return nil, fmt.Errorf("failed to invalidate the secrets belonging to role '%s': %s", roleName, err)
 	}
 
-	// Delete the reverse mroleing from SelectorID to the Role
-	if err = b.selectorIDEntryDelete(req.Storage, role.SelectorID); err != nil {
-		return nil, fmt.Errorf("failed to delete the mroleing from SelectorID to role '%s': %s", roleName, err)
+	// Delete the reverse mroleing from RoleID to the Role
+	if err = b.roleIDEntryDelete(req.Storage, role.RoleID); err != nil {
+		return nil, fmt.Errorf("failed to delete the mroleing from RoleID to role '%s': %s", roleName, err)
 	}
 
-	// After deleting the SecretIDs and the SelectorID, delete the Role itself
+	// After deleting the SecretIDs and the RoleID, delete the Role itself
 	if err = req.Storage.Delete("role/" + strings.ToLower(roleName)); err != nil {
 		return nil, err
 	}
@@ -702,8 +702,8 @@ func (b *backend) pathRoleSecretIDAccessorRead(req *logical.Request, data *frame
 		return logical.ErrorResponse("missing secret_id_accessor"), nil
 	}
 
-	// SecretID is indexed based on salted SelectorID and HMACed SecretID.
-	// Get the Role details to fetch the SelectorID and accessor to get
+	// SecretID is indexed based on salted RoleID and HMACed SecretID.
+	// Get the Role details to fetch the RoleID and accessor to get
 	// the HMAC-ed SecretID.
 
 	role, err := b.roleEntry(req.Storage, strings.ToLower(roleName))
@@ -722,7 +722,7 @@ func (b *backend) pathRoleSecretIDAccessorRead(req *logical.Request, data *frame
 		return nil, fmt.Errorf("failed to find accessor entry for secret_id_accessor:%s\n", secretIDAccessor)
 	}
 
-	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.SelectorID), accessorEntry.SecretIDHMAC)
+	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.RoleID), accessorEntry.SecretIDHMAC)
 
 	lock := b.secretIDLock(accessorEntry.SecretIDHMAC)
 	lock.RLock()
@@ -754,8 +754,8 @@ func (b *backend) pathRoleSecretIDAccessorDelete(req *logical.Request, data *fra
 		return logical.ErrorResponse("missing secret_id_accessor"), nil
 	}
 
-	// SecretID is indexed based on salted SelectorID and HMACed SecretID.
-	// Get the Role details to fetch the SelectorID and accessor to get
+	// SecretID is indexed based on salted RoleID and HMACed SecretID.
+	// Get the Role details to fetch the RoleID and accessor to get
 	// the HMAC-ed SecretID.
 
 	role, err := b.roleEntry(req.Storage, strings.ToLower(roleName))
@@ -774,7 +774,7 @@ func (b *backend) pathRoleSecretIDAccessorDelete(req *logical.Request, data *fra
 		return nil, fmt.Errorf("failed to find accessor entry for secret_id_accessor:%s\n", secretIDAccessor)
 	}
 
-	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.SelectorID), accessorEntry.SecretIDHMAC)
+	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(role.RoleID), accessorEntry.SecretIDHMAC)
 	accessorEntryIndex := "accessor/" + b.salt.SaltID(secretIDAccessor)
 
 	lock := b.secretIDLock(accessorEntry.SecretIDHMAC)
@@ -1004,7 +1004,7 @@ func (b *backend) pathRoleSecretIDNumUsesUpdate(req *logical.Request, data *fram
 	}
 }
 
-func (b *backend) pathRoleSelectorIDRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathRoleRoleIDRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("role_name").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("missing role_name"), nil
@@ -1017,7 +1017,7 @@ func (b *backend) pathRoleSelectorIDRead(req *logical.Request, data *framework.F
 	} else {
 		return &logical.Response{
 			Data: map[string]interface{}{
-				"selector_id": role.SelectorID,
+				"role_id": role.RoleID,
 			},
 		}, nil
 	}
@@ -1365,7 +1365,7 @@ func (b *backend) handleRoleSecretIDCommon(req *logical.Request, data *framework
 		}
 	}
 
-	if secretIDStorage, err = b.registerSecretIDEntry(req.Storage, role.SelectorID, secretID, role.HMACKey, secretIDStorage); err != nil {
+	if secretIDStorage, err = b.registerSecretIDEntry(req.Storage, role.RoleID, secretID, role.HMACKey, secretIDStorage); err != nil {
 		return nil, fmt.Errorf("failed to store SecretID: %s", err)
 	}
 
@@ -1468,10 +1468,10 @@ defines the maximum lifetime of the tokens issued, after which the tokens
 cannot be renewed. A reauthentication is required after this duration.
 This value will be croleed by the backend mount's maximum TTL value.`,
 	},
-	"role-selector-id": {
-		"Returns the 'selector_id' of the Role.",
-		`If login is performed from an Role, then its 'selector_id' should be presented
-as a credential during the login. This 'selector_id' can be retrieved using
+	"role-id": {
+		"Returns the 'role_id' of the Role.",
+		`If login is performed from an Role, then its 'role_id' should be presented
+as a credential during the login. This 'role_id' can be retrieved using
 this endpoint.`,
 	},
 	"role-secret-id": {

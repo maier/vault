@@ -12,14 +12,14 @@ func pathLogin(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: "login$",
 		Fields: map[string]*framework.FieldSchema{
-			"selector_id": &framework.FieldSchema{
+			"role_id": &framework.FieldSchema{
 				Type:        framework.TypeString,
 				Description: "Unique identifier of the Role. Required to be supplied when the bound type is 'bound_secret_id'",
 			},
 			"secret_id": &framework.FieldSchema{
 				Type:        framework.TypeString,
 				Default:     "",
-				Description: "SecretID of the Role",
+				Description: "SecretID belong to the App role",
 			},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -41,7 +41,7 @@ func (b *backend) pathLoginUpdate(req *logical.Request, data *framework.FieldDat
 	auth := &logical.Auth{
 		Period: role.Period,
 		InternalData: map[string]interface{}{
-			"selector_id": role.SelectorID,
+			"role_id": role.RoleID,
 		},
 		Policies: role.Policies,
 		LeaseOptions: logical.LeaseOptions{
@@ -64,15 +64,15 @@ func (b *backend) pathLoginUpdate(req *logical.Request, data *framework.FieldDat
 
 // Invoked when the token issued by this backend is attempting a renewal.
 func (b *backend) pathLoginRenew(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	selectorID := req.Auth.InternalData["selector_id"].(string)
-	if selectorID == "" {
-		return nil, fmt.Errorf("failed to fetch selector_id during renewal")
+	roleID := req.Auth.InternalData["role_id"].(string)
+	if roleID == "" {
+		return nil, fmt.Errorf("failed to fetch role_id during renewal")
 	}
 
 	// Ensure that the Role still exists.
-	role, err := b.validateSelectorID(req.Storage, selectorID)
+	role, err := b.validateRoleID(req.Storage, roleID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to validate selector during renewal:%s", err)
+		return nil, fmt.Errorf("failed to validate role_id during renewal:%s", err)
 	}
 
 	// If 'Period' is set on the Role, the token should never expire.
@@ -90,12 +90,12 @@ func (b *backend) pathLoginRenew(req *logical.Request, data *framework.FieldData
 const pathLoginHelpSys = "Issue a token based on the credentials supplied"
 
 const pathLoginHelpDesc = `
-While the credential 'selector_id' is required at all times,
+While the credential 'role_id' is required at all times,
 other credentials required depends on the properties App role
-to which the 'selector_id' belongs to. The 'bound_secret_id'
+to which the 'role_id' belongs to. The 'bound_secret_id'
 constraint (enabled by default) on the App role requires the
 'secret_id' credential to be presented.
 
-'selector_id' is fetched using the 'role/<role_name>/selector_id'
+'role_id' is fetched using the 'role/<role_name>/role_id'
 endpoint and 'secret_id' is fetched using the 'role/<role_name>/secret_id'
 endpoint.`

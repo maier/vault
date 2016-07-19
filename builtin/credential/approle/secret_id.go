@@ -24,7 +24,7 @@ type secretIDStorageEntry struct {
 	// a secondary index for the SecretID. This uniquely identifies
 	// the SecretID it belongs to, and hence can be used for listing
 	// and deleting SecretIDs. Accessors cannot be used as valid
-	// selectors during login.
+	// SecretIDs during login.
 	SecretIDAccessor string `json:"secret_id_accessor" structs:"secret_id_accessor" mapstructure:"secret_id_accessor"`
 
 	// Number of times this SecretID can be used to perform the login operation
@@ -59,24 +59,21 @@ type secretIDAccessorStorageEntry struct {
 	SecretIDHMAC string `json:"secret_id_hmac" structs:"secret_id_hmac" mapstructure:"secret_id_hmac"`
 }
 
-// selectorStorageEntry represents the reverse mroleing from SelectorID to Role
-type selectorIDStorageEntry struct {
-	// Type of selector: "role"
+// roleIDStorageEntry represents the reverse mroleing from RoleID to Role
+type roleIDStorageEntry struct {
 	Type string `json:"type" structs:"type" mapstructure:"type"`
-
-	// Name of the role
 	Name string `json:"name" structs:"name" mapstructure:"name"`
 }
 
-// setSelectorIDEntry creates a storage entry that maps SelectorID to Role
-func (b *backend) setSelectorIDEntry(s logical.Storage, selectorID string, selectorEntry *selectorIDStorageEntry) error {
-	lock := b.selectorIDLock(selectorID)
+// setRoleIDEntry creates a storage entry that maps RoleID to Role
+func (b *backend) setRoleIDEntry(s logical.Storage, roleID string, roleIDEntry *roleIDStorageEntry) error {
+	lock := b.roleIDLock(roleID)
 	lock.Lock()
 	defer lock.Unlock()
 
-	entryIndex := "selector/" + b.salt.SaltID(selectorID)
+	entryIndex := "role_id/" + b.salt.SaltID(roleID)
 
-	entry, err := logical.StorageEntryJSON(entryIndex, selectorEntry)
+	entry, err := logical.StorageEntryJSON(entryIndex, roleIDEntry)
 	if err != nil {
 		return err
 	}
@@ -86,19 +83,19 @@ func (b *backend) setSelectorIDEntry(s logical.Storage, selectorID string, selec
 	return nil
 }
 
-// selectorIDEntry is used to read the storage entry that maps SelectorID to Role
-func (b *backend) selectorIDEntry(s logical.Storage, selectorID string) (*selectorIDStorageEntry, error) {
-	if selectorID == "" {
-		return nil, fmt.Errorf("missing selectorID")
+// roleIDEntry is used to read the storage entry that maps RoleID to Role
+func (b *backend) roleIDEntry(s logical.Storage, roleID string) (*roleIDStorageEntry, error) {
+	if roleID == "" {
+		return nil, fmt.Errorf("missing roleID")
 	}
 
-	lock := b.selectorIDLock(selectorID)
+	lock := b.roleIDLock(roleID)
 	lock.RLock()
 	defer lock.RUnlock()
 
-	var result selectorIDStorageEntry
+	var result roleIDStorageEntry
 
-	entryIndex := "selector/" + b.salt.SaltID(selectorID)
+	entryIndex := "role_id/" + b.salt.SaltID(roleID)
 
 	if entry, err := s.Get(entryIndex); err != nil {
 		return nil, err
@@ -111,54 +108,54 @@ func (b *backend) selectorIDEntry(s logical.Storage, selectorID string) (*select
 	return &result, nil
 }
 
-// selectorIDEntryDelete is used to remove the secondary index that maps the
-// SelectorID to the Role itself.
-func (b *backend) selectorIDEntryDelete(s logical.Storage, selectorID string) error {
-	if selectorID == "" {
-		return fmt.Errorf("missing selectorID")
+// roleIDEntryDelete is used to remove the secondary index that maps the
+// RoleID to the Role itself.
+func (b *backend) roleIDEntryDelete(s logical.Storage, roleID string) error {
+	if roleID == "" {
+		return fmt.Errorf("missing roleID")
 	}
 
-	lock := b.selectorIDLock(selectorID)
+	lock := b.roleIDLock(roleID)
 	lock.Lock()
 	defer lock.Unlock()
 
-	entryIndex := "selector/" + b.salt.SaltID(selectorID)
+	entryIndex := "role_id/" + b.salt.SaltID(roleID)
 
 	return s.Delete(entryIndex)
 }
 
-// Checks if the Role represented by the SelectorID still exists
-func (b *backend) validateSelectorID(s logical.Storage, selectorID string) (*roleStorageEntry, error) {
-	// Look for the storage entry that maps the selectorID to role
-	selector, err := b.selectorIDEntry(s, selectorID)
+// Checks if the Role represented by the RoleID still exists
+func (b *backend) validateRoleID(s logical.Storage, roleID string) (*roleStorageEntry, error) {
+	// Look for the storage entry that maps the roleID to role
+	roleIDIndex, err := b.roleIDEntry(s, roleID)
 	if err != nil {
 		return nil, err
 	}
-	if selector == nil {
-		return nil, fmt.Errorf("failed to find selector for selector_id:%s\n", selectorID)
+	if roleIDIndex == nil {
+		return nil, fmt.Errorf("failed to find secondary index for role_id:%s\n", roleID)
 	}
 
-	role, err := b.roleEntry(s, selector.Name)
+	role, err := b.roleEntry(s, roleIDIndex.Name)
 	if err != nil {
 		return nil, err
 	}
 	if role == nil {
-		return nil, fmt.Errorf("role %s referred by the SecretID does not exist", selector.Name)
+		return nil, fmt.Errorf("role %s referred by the SecretID does not exist", roleIDIndex.Name)
 	}
 
 	return role, nil
 }
 
-// Validates the supplied SelectorID and SecretID
+// Validates the supplied RoleID and SecretID
 func (b *backend) validateCredentials(req *logical.Request, data *framework.FieldData) (*roleStorageEntry, error) {
-	// SelectorID must be supplied during every login
-	selectorID := strings.TrimSpace(data.Get("selector_id").(string))
-	if selectorID == "" {
-		return nil, fmt.Errorf("missing selector_id")
+	// RoleID must be supplied during every login
+	roleID := strings.TrimSpace(data.Get("role_id").(string))
+	if roleID == "" {
+		return nil, fmt.Errorf("missing role_id")
 	}
 
-	// Validate the SelectorID and get the Role entry
-	role, err := b.validateSelectorID(req.Storage, selectorID)
+	// Validate the RoleID and get the Role entry
+	role, err := b.validateRoleID(req.Storage, roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +199,7 @@ func (b *backend) validateCredentials(req *logical.Request, data *framework.Fiel
 
 		// Check if the SecretID supplied is valid. If use limit was specified
 		// on the SecretID, it will be decremented in this call.
-		valid, err := b.validateBoundSecretID(req.Storage, selectorID, secretID, role.HMACKey)
+		valid, err := b.validateBoundSecretID(req.Storage, roleID, secretID, role.HMACKey)
 		if err != nil {
 			return nil, err
 		}
@@ -220,12 +217,12 @@ func (b *backend) validateCredentials(req *logical.Request, data *framework.Fiel
 }
 
 // validateBoundSecretID is used to determine if the given SecretID is a valid one.
-func (b *backend) validateBoundSecretID(s logical.Storage, selectorID, secretID, hmacKey string) (bool, error) {
+func (b *backend) validateBoundSecretID(s logical.Storage, roleID, secretID, hmacKey string) (bool, error) {
 	secretIDHMAC, err := createHMAC(hmacKey, secretID)
 	if err != nil {
 		return false, fmt.Errorf("failed to create HMAC of secret_id: %s", err)
 	}
-	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(selectorID), secretIDHMAC)
+	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(roleID), secretIDHMAC)
 
 	// SecretID locks are always index based on secretIDHMACs. This helps
 	// acquiring the locks when the SecretIDs are listed. This allows grabbing
@@ -296,19 +293,19 @@ func (b *backend) validateBoundSecretID(s logical.Storage, selectorID, secretID,
 	return true, nil
 }
 
-// selectorIDLock is used to get a lock from the pre-initialized map
+// roleIDLock is used to get a lock from the pre-initialized map
 // of locks. Map is indexed based on the first 2 characters of the
-// SelectorID, which is a random UUID. If the input is not hex encoded
+// RoleID, which is a random UUID. If the input is not hex encoded
 // or if it is empty a "custom" lock will be returned.
-func (b *backend) selectorIDLock(selectorID string) *sync.RWMutex {
+func (b *backend) roleIDLock(roleID string) *sync.RWMutex {
 	var lock *sync.RWMutex
 	var ok bool
-	if len(selectorID) >= 2 {
-		lock, ok = b.selectorIDLocksMap[selectorID[0:2]]
+	if len(roleID) >= 2 {
+		lock, ok = b.roleIDLocksMap[roleID[0:2]]
 	}
 	if !ok || lock == nil {
 		// Fall back for custom SecretIDs
-		lock = b.selectorIDLocksMap["custom"]
+		lock = b.roleIDLocksMap["custom"]
 	}
 	return lock
 }
@@ -342,12 +339,12 @@ func createHMAC(key, value string) (string, error) {
 }
 
 // registerSecretIDEntry creates a new storage entry for the given SecretID.
-func (b *backend) registerSecretIDEntry(s logical.Storage, selectorID, secretID, hmacKey string, secretEntry *secretIDStorageEntry) (*secretIDStorageEntry, error) {
+func (b *backend) registerSecretIDEntry(s logical.Storage, roleID, secretID, hmacKey string, secretEntry *secretIDStorageEntry) (*secretIDStorageEntry, error) {
 	secretIDHMAC, err := createHMAC(hmacKey, secretID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HMAC of secret_id: %s", err)
 	}
-	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(selectorID), secretIDHMAC)
+	entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(roleID), secretIDHMAC)
 
 	lock := b.secretIDLock(secretIDHMAC)
 	lock.RLock()
@@ -409,8 +406,8 @@ func (b *backend) registerSecretIDEntry(s logical.Storage, selectorID, secretID,
 	return secretEntry, nil
 }
 
-// selectorIDEntry is used to read the storage entry that maps the
-// SelectorID to an Role. This method should be called when the lock
+// roleIDEntry is used to read the storage entry that maps the
+// RoleID to an Role. This method should be called when the lock
 // for the corresponding SecretID is held.
 func (b *backend) secretIDAccessorEntry(s logical.Storage, secretIDAccessor string) (*secretIDAccessorStorageEntry, error) {
 	if secretIDAccessor == "" {
@@ -477,14 +474,14 @@ func (b *backend) fetchPolicies(s logical.Storage, roles []string) ([]string, er
 	return strutil.RemoveDuplicates(policies), nil
 }
 
-// flushSelectorSecrets deletes all the SecretIDs that belong to the given
-// SelectorID.
-func (b *backend) flushSelectorSecrets(s logical.Storage, selectorID string) error {
+// flushRoleSecrets deletes all the SecretIDs that belong to the given
+// RoleID.
+func (b *backend) flushRoleSecrets(s logical.Storage, roleID string) error {
 	// Acquire the custom lock to perform listing of SecretIDs
 	customLock := b.secretIDLock("")
 	customLock.RLock()
 	defer customLock.RUnlock()
-	secretIDHMACs, err := s.List(fmt.Sprintf("secret_id/%s/", b.salt.SaltID(selectorID)))
+	secretIDHMACs, err := s.List(fmt.Sprintf("secret_id/%s/", b.salt.SaltID(roleID)))
 	if err != nil {
 		return err
 	}
@@ -492,7 +489,7 @@ func (b *backend) flushSelectorSecrets(s logical.Storage, selectorID string) err
 		// Acquire the lock belonging to the SecretID
 		lock := b.secretIDLock(secretIDHMAC)
 		lock.Lock()
-		entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(selectorID), secretIDHMAC)
+		entryIndex := fmt.Sprintf("secret_id/%s/%s", b.salt.SaltID(roleID), secretIDHMAC)
 		if err := s.Delete(entryIndex); err != nil {
 			lock.Unlock()
 			return fmt.Errorf("error deleting SecretID %s from storage: %s", secretIDHMAC, err)

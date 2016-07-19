@@ -12,16 +12,16 @@ func TestBackend_role_login(t *testing.T) {
 	b, storage := createBackendWithStorage(t)
 
 	createRole(t, b, storage, "role1", "a,b,c")
-	roleSelectorIDReq := &logical.Request{
+	roleRoleIDReq := &logical.Request{
 		Operation: logical.ReadOperation,
-		Path:      "role/role1/selector-id",
+		Path:      "role/role1/role-id",
 		Storage:   storage,
 	}
-	resp, err = b.HandleRequest(roleSelectorIDReq)
+	resp, err = b.HandleRequest(roleRoleIDReq)
 	if err != nil || (resp != nil && resp.IsError()) {
 		t.Fatalf("err:%v resp:%#v", err, resp)
 	}
-	selectorID := resp.Data["selector_id"]
+	roleID := resp.Data["role_id"]
 
 	roleSecretIDReq := &logical.Request{
 		Operation: logical.UpdateOperation,
@@ -35,8 +35,8 @@ func TestBackend_role_login(t *testing.T) {
 	secretID := resp.Data["secret_id"]
 
 	loginData := map[string]interface{}{
-		"selector_id": selectorID,
-		"secret_id":   secretID,
+		"role_id":   roleID,
+		"secret_id": secretID,
 	}
 	loginReq := &logical.Request{
 		Operation: logical.UpdateOperation,
