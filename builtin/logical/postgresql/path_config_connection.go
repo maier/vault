@@ -18,16 +18,19 @@ func pathConfigConnection(b *backend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: "DB connection string",
 			},
+
 			"value": &framework.FieldSchema{
 				Type: framework.TypeString,
 				Description: `DB connection string. Use 'connection_url' instead.
 This will be deprecated.`,
 			},
+
 			"verify_connection": &framework.FieldSchema{
 				Type:        framework.TypeBool,
 				Default:     true,
 				Description: `If set, connection_url is verified by actually connecting to the database`,
 			},
+
 			"max_open_connections": &framework.FieldSchema{
 				Type: framework.TypeInt,
 				Description: `Maximum number of open connections to the database;
@@ -35,7 +38,6 @@ a zero uses the default value of two and a
 negative value means unlimited`,
 			},
 
-			// Implementation note:
 			"max_idle_connections": &framework.FieldSchema{
 				Type: framework.TypeInt,
 				Description: `Maximum number of idle connections to the database;
@@ -122,7 +124,6 @@ func (b *backend) pathConnectionWrite(
 		ConnectionURL:      connURL,
 		MaxOpenConnections: maxOpenConns,
 		MaxIdleConnections: maxIdleConns,
-		VerifyConnection:   verifyConnection,
 	})
 	if err != nil {
 		return nil, err
@@ -146,7 +147,6 @@ type connectionConfig struct {
 	ConnectionString   string `json:"value" structs:"value" mapstructure:"value"`
 	MaxOpenConnections int    `json:"max_open_connections" structs:"max_open_connections" mapstructure:"max_open_connections"`
 	MaxIdleConnections int    `json:"max_idle_connections" structs:"max_idle_connections" mapstructure:"max_idle_connections"`
-	VerifyConnection   bool   `json:"verify_connection" structs:"verify_connection" mapstructure:"verify_connection"`
 }
 
 const pathConfigConnectionHelpSyn = `

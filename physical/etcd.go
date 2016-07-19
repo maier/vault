@@ -89,6 +89,10 @@ func newEtcdBackend(conf map[string]string, logger *log.Logger) (Backend, error)
 	if address, ok := conf["address"]; ok {
 		machines = address
 	}
+	machinesEnv := os.Getenv("ETCD_ADDR")
+	if machinesEnv != "" {
+		machines = machinesEnv
+	}
 	machinesParsed := strings.Split(machines, EtcdMachineDelimiter)
 
 	// Verify that the machines are valid URLs
@@ -307,6 +311,12 @@ func (c *EtcdBackend) LockWith(key, value string) (Lock, error) {
 		value:           value,
 		semaphoreDirKey: c.nodePathLock(key),
 	}, nil
+}
+
+// HAEnabled indicates whether the HA functionality should be exposed.
+// Currently always returns true.
+func (e *EtcdBackend) HAEnabled() bool {
+	return true
 }
 
 // EtcdLock emplements a lock using and etcd backend.

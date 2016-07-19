@@ -91,31 +91,42 @@ func (b *backend) secretCredsRevoke(
 	}
 	username, ok := usernameRaw.(string)
 
+
 	// Get our connection
 	db, err := b.DB(req.Storage)
 	if err != nil {
 		return nil, err
 	}
 
+	// Check if the role exists
+	var exists bool
+	err = db.QueryRow("SELECT exists (SELECT rolname FROM pg_roles WHERE rolname=$1);", username).Scan(&exists)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	if exists == false {
+		return nil, nil
+	}
+
 	// Query for permissions; we need to revoke permissions before we can drop
 	// the role
 	// This isn't done in a transaction because even if we fail along the way,
 	// we want to remove as much access as possible
-	stmt, err := db.Prepare(fmt.Sprintf(
-		"SELECT DISTINCT table_schema FROM information_schema.role_column_grants WHERE grantee='%s';",
-		username))
+	stmt, err := db.Prepare("SELECT DISTINCT table_schema FROM information_schema.role_column_grants WHERE grantee=$1;")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
+	rows, err := stmt.Query(username)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var revocationStmts []string
+	const initialNumRevocations = 16
+	revocationStmts := make([]string, 0, initialNumRevocations)
 	for rows.Next() {
 		var schema string
 		err = rows.Scan(&schema)
@@ -124,17 +135,23 @@ func (b *backend) secretCredsRevoke(
 			continue
 		}
 		revocationStmts = append(revocationStmts, fmt.Sprintf(
-			"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %s FROM %s;",
-			schema, pq.QuoteIdentifier(username)))
+			`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %s FROM %s;`,
+			pq.QuoteIdentifier(schema),
+			pq.QuoteIdentifier(username)))
 
 		revocationStmts = append(revocationStmts, fmt.Sprintf(
-			"REVOKE USAGE ON SCHEMA %s FROM %s;",
-			schema, pq.QuoteIdentifier(username)))
+			`REVOKE USAGE ON SCHEMA %s FROM %s;`,
+			pq.QuoteIdentifier(schema),
+			pq.QuoteIdentifier(username)))
 	}
 
 	// for good measure, revoke all privileges and usage on schema public
 	revocationStmts = append(revocationStmts, fmt.Sprintf(
-		"REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %s;",
+		`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %s;`,
+		pq.QuoteIdentifier(username)))
+
+	revocationStmts = append(revocationStmts, fmt.Sprintf(
+		"REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %s;",
 		pq.QuoteIdentifier(username)))
 
 	revocationStmts = append(revocationStmts, fmt.Sprintf(
@@ -150,8 +167,9 @@ func (b *backend) secretCredsRevoke(
 
 	if dbname.Valid {
 		revocationStmts = append(revocationStmts, fmt.Sprintf(
-			"REVOKE CONNECT ON DATABASE %s FROM %s;",
-			dbname.String, pq.QuoteIdentifier(username)))
+			`REVOKE CONNECT ON DATABASE %s FROM %s;`,
+			pq.QuoteIdentifier(dbname.String),
+			pq.QuoteIdentifier(username)))
 	}
 
 	// again, here, we do not stop on error, as we want to remove as
@@ -163,6 +181,7 @@ func (b *backend) secretCredsRevoke(
 			lastStmtError = err
 			continue
 		}
+		defer stmt.Close()
 		_, err = stmt.Exec()
 		if err != nil {
 			lastStmtError = err
@@ -179,7 +198,7 @@ func (b *backend) secretCredsRevoke(
 
 	// Drop this user
 	stmt, err = db.Prepare(fmt.Sprintf(
-		"DROP ROLE IF EXISTS %s;", pq.QuoteIdentifier(username)))
+		`DROP ROLE IF EXISTS %s;`, pq.QuoteIdentifier(username)))
 	if err != nil {
 		return nil, err
 	}

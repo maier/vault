@@ -242,10 +242,11 @@ endpoints.
 
 ### Varying Public Certificates
 
-The AWS public certificate which contains the public key used to verify the
-PKCS#7 signature varies for groups of regions. The default public certificate
-provided with the backend is applicable for many regions. Instances whose PKCS#7
-signatures cannot be verified by the default public certificate, can register a
+The AWS public certificate, which contains the public key used to verify the
+PKCS#7 signature, varies for different AWS regions. The primary AWS public
+certificate, which covers most AWS regions, is already included in Vault and
+does not need to be added. Instances whose PKCS#7 signatures cannot be
+verified by the default public certificate included in Vault can register a
 different public certificate which can be found [here]
 (http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html),
 via the `auth/aws-ec2/config/certificate/<cert_name>` endpoint.
@@ -271,7 +272,7 @@ $ vault auth-enable aws-ec2
 #### Configure the credentials required to make AWS API calls
 
 Note: the client uses the official AWS SDK and will use environment variable or
-IAM role-provided credentials if available.
+IAM role-provided credentials if available. The AWS credentials used require the IAM action `ec2:DescribeInstance` to be allowed.
 
 ```
 $ vault write auth/aws-ec2/config/client secret_key=vCtSM8ZUEQ3mOFVlYPBQkf2sO6F/W7a5TVzrl3Oj access_key=VKIAJBRHKH6EVTTNXDHA
@@ -313,7 +314,7 @@ curl -X POST -H "x-vault-token:123" "http://127.0.0.1:8200/v1/auth/aws-ec2/role/
 #### Perform the login operation
 
 ```
-curl -X POST "http://127.0.0.1:8200/v1/auth/aws-ec2/login" -d '{"role":"dev-role","pkcs7":"MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggGmewogICJkZXZwYXlQcm9kdWN0Q29kZXMiIDogbnVsbCwKICAicHJpdmF0ZUlwIiA6ICIxNzIuMzEuNjMuNjAiLAogICJhdmFpbGFiaWxpdHlab25lIiA6ICJ1cy1lYXN0LTFjIiwKICAidmVyc2lvbiIgOiAiMjAxMC0wOC0zMSIsCiAgImluc3RhbmNlSWQiIDogImktZGUwZjEzNDQiLAogICJiaWxsaW5nUHJvZHVjdHMiIDogbnVsbCwKICAiaW5zdGFuY2VUeXBlIiA6ICJ0Mi5taWNybyIsCiAgImFjY291bnRJZCIgOiAiMjQxNjU2NjE1ODU5IiwKICAiaW1hZ2VJZCIgOiAiYW1pLWZjZTNjNjk2IiwKICAicGVuZGluZ1RpbWUiIDogIjIwMTYtMDQtMDVUMTY6MjY6NTVaIiwKICAiYXJjaGl0ZWN0dXJlIiA6ICJ4ODZfNjQiLAogICJrZXJuZWxJZCIgOiBudWxsLAogICJyYW1kaXNrSWQiIDogbnVsbCwKICAicmVnaW9uIiA6ICJ1cy1lYXN0LTEiCn0AAAAAAAAxggEXMIIBEwIBATBpMFwxCzAJBgNVBAYTAlVTMRkwFwYDVQQIExBXYXNoaW5ndG9uIFN0YXRlMRAwDgYDVQQHEwdTZWF0dGxlMSAwHgYDVQQKExdBbWF6b24gV2ViIFNlcnZpY2VzIExMQwIJAJa6SNnlXhpnMAkGBSsOAwIaBQCgXTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xNjA0MDUxNjI3MDBaMCMGCSqGSIb3DQEJBDEWBBRtiynzMTNfTw1TV/d8NvfgVw+XfTAJBgcqhkjOOAQDBC4wLAIUVfpVcNYoOKzN1c+h1Vsm/c5U0tQCFAK/K72idWrONIqMOVJ8Uen0wYg4AAAAAAAA","nonce":"vault-client-nonce"}'
+curl -X POST "http://127.0.0.1:8200/v1/auth/aws-ec2/login" -d '{"role":"dev-role","pkcs7":"$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/pkcs7 | tr -d '\n')","nonce":"vault-client-nonce"}'
 ```
 
 
@@ -1107,7 +1108,7 @@ in its identity document to match the one specified by this parameter.
       <li>
         <span class="param">pkcs7</span>
         <span class="param-flags">required</span>
-        PKCS7 signature of the identity document.
+        PKCS7 signature of the identity document with all `\n` characters removed.
       </li>
     </ul>
     <ul>

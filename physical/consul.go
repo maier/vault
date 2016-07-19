@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/vault/helper/tlsutil"
 )
 
 const (
@@ -190,7 +191,19 @@ func setupTLSConfig(conf map[string]string) (*tls.Config, error) {
 		insecureSkipVerify = true
 	}
 
+	tlsMinVersionStr, ok := conf["tls_min_version"]
+	if !ok {
+		// Set the default value
+		tlsMinVersionStr = "tls12"
+	}
+
+	tlsMinVersion, ok := tlsutil.TLSLookup[tlsMinVersionStr]
+	if !ok {
+		return nil, fmt.Errorf("invalid 'tls_min_version'")
+	}
+
 	tlsClientConfig := &tls.Config{
+		MinVersion:         tlsMinVersion,
 		InsecureSkipVerify: insecureSkipVerify,
 		ServerName:         serverName[0],
 	}
@@ -315,6 +328,12 @@ func (c *ConsulBackend) LockWith(key, value string) (Lock, error) {
 		lock:   lock,
 	}
 	return cl, nil
+}
+
+// HAEnabled indicates whether the HA functionality should be exposed.
+// Currently always returns true.
+func (c *ConsulBackend) HAEnabled() bool {
+	return true
 }
 
 // DetectHostAddr is used to detect the host address by asking the Consul agent
@@ -494,7 +513,13 @@ shutdown:
 // checkID returns the ID used for a Consul Check.  Assume at least a read
 // lock is held.
 func (c *ConsulBackend) checkID() string {
-	return "vault-sealed-check"
+	return fmt.Sprintf("%s:vault-sealed-check", c.serviceID())
+}
+
+// serviceID returns the Vault ServiceID for use in Consul.  Assume at least
+// a read lock is held.
+func (c *ConsulBackend) serviceID() string {
+	return fmt.Sprintf("%s:%s:%d", c.serviceName, c.advertiseHost, c.advertisePort)
 }
 
 // reconcileConsul queries the state of Vault Core and Consul and fixes up
@@ -508,16 +533,21 @@ func (c *ConsulBackend) reconcileConsul(registeredServiceID string, activeFunc a
 	sealed := sealedFunc()
 
 	agent := c.client.Agent()
+	catalog := c.client.Catalog()
+
+	serviceID = c.serviceID()
 
 	// Get the current state of Vault from Consul
-	var currentVaultService *api.AgentService
-	if services, err := agent.Services(); err == nil {
-		if service, ok := services[c.serviceName]; ok {
-			currentVaultService = service
+	var currentVaultService *api.CatalogService
+	if services, _, err := catalog.Service(c.serviceName, "", &api.QueryOptions{AllowStale: true}); err == nil {
+		for _, service := range services {
+			if serviceID == service.ServiceID {
+				currentVaultService = service
+				break
+			}
 		}
 	}
 
-	serviceID = c.serviceID()
 	tags := serviceTags(active)
 
 	var reregister bool
@@ -527,14 +557,16 @@ func (c *ConsulBackend) reconcileConsul(registeredServiceID string, activeFunc a
 		reregister = true
 	default:
 		switch {
-		case len(currentVaultService.Tags) != 1,
-			currentVaultService.Tags[0] != tags[0]:
+		case len(currentVaultService.ServiceTags) != 1,
+			currentVaultService.ServiceTags[0] != tags[0]:
 			reregister = true
 		}
 	}
 
 	if !reregister {
-		return "", nil
+		// When re-registration is not required, return a valid serviceID
+		// to avoid registration in the next cycle.
+		return serviceID, nil
 	}
 
 	service := &api.AgentServiceRegistration{
@@ -582,12 +614,6 @@ func (c *ConsulBackend) runCheck(sealed bool) error {
 	} else {
 		return agent.FailTTL(c.checkID(), "Vault Sealed")
 	}
-}
-
-// serviceID returns the Vault ServiceID for use in Consul.  Assume at least
-// a read lock is held.
-func (c *ConsulBackend) serviceID() string {
-	return fmt.Sprintf("%s:%s:%d", c.serviceName, c.advertiseHost, c.advertisePort)
 }
 
 // serviceTags returns all of the relevant tags for Consul.

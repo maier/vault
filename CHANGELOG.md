@@ -2,7 +2,12 @@
 
 DEPRECATIONS/BREAKING CHANGES:
 
- * Issued certificates from the `pki` backend against new roles created after upgrading will contain a set of default key usages. 
+ * Issued certificates from the `pki` backend against new roles created or
+   modified after upgrading will contain a set of default key usages. 
+ * The `dynamodb` physical data store no longer supports HA by default. It has
+   some non-ideal behavior around failover that was causing confusion. See the
+   [documentation] for information on enabling HA mode. It is very important
+   that this configuration is added _before upgrading_.
 
 FEATURES:
 
@@ -17,8 +22,18 @@ FEATURES:
    modified after upgrading contain a set of default key usages for increased
    compatibility with OpenVPN and some other software. This set can be changed
    when writing a role definition. Existing roles are unaffected. [GH-1552]
+ * **Request Retrying in the CLI and Go API**: Requests that fail with a `5xx`
+   error code will now retry after a backoff. The maximum total number of
+   retries (including disabling this functionality) can be set with an
+   environment variable. See the [environment variable
+   documentation](https://www.vaultproject.io/docs/commands/environment.html)
+   for more details. [GH-1594]
+ * **MongoDB Secret Backend**: Generate dynamic unique MongoDB database
+   credentials based on configured roles. Sponsored by
+   [CommerceHub](http://www.commercehub.com/). [GH-1414]
 
 IMPROVEMENTS:
+
  * cli: Output formatting in the presence of warnings in the response object
    [GH-1533]
  * cli: `vault auth` command supports a `-path` option to take in the path at
@@ -26,11 +41,25 @@ IMPROVEMENTS:
    different paths using the command options [GH-1532]
  * cli: `vault auth -methods` will now display the config settings of the mount
    [GH-1531]
+ * cli: `vault read/write/unwrap -field` now allows selecting token response
+   fields [GH-1567]
+ * cli: `vault write -field` now allows selecting wrapped response fields
+   [GH-1567]
+ * core: Response wrapping is now enabled for login endpoints [GH-1588]
+ * core: The duration of leadership is now exported via events through
+   telemetry [GH-1625]
  * credential/aws-ec2: Added a new constraint, 'bound_account_id' to the role
    [GH-1523]
+ * physical/etcd: Support `ETCD_ADDR` env var for specifying addresses [GH-1576]
  * secret/aws: Listing of roles is supported now  [GH-1546]
+ * secret/cassandra: Add `connect_timeout` value for Cassandra connection
+   configuration [GH-1581]
  * secret/mssql,mysql,postgresql: Reading of connection settings is supported
    in all the sql backends [GH-1515]
+ * credential/ldap, secret/cassandra, physical/consul: Clients with `tls.Config`
+   will have `MinVersion` set to TLS 1.2 by default.
+ * logical/ssh: Added `allowed_roles` to vault-ssh-helper's config and returning
+   role name as part of response of `verify` API.
 
 BUG FIXES:
 
@@ -38,8 +67,15 @@ BUG FIXES:
    during renewal [GH-1542]
  * core: Fix regression causing status codes to be `400` in most non-5xx error
    cases [GH-1553]
+ * core: Fix panic that could occur during a leadership transition [GH-1627]
+ * secret/postgresql: Handle revoking roles that have privileges on sequences
+   [GH-1573]
+ * secret/postgresql(,mysql,mssql): Fix incorrect use of database over
+   transaction object which could lead to connection exhaustion [GH-1572]
  * physical/postgres: Remove use of prepared statements as this causes
    connection multiplexing software to break [GH-1548]
+ * physical/consul: Multiple Vault nodes on the same machine leading to check ID
+   collisions were resulting in incorrect health check responses [GH-1628]
 
 ## 0.6.0 (June 14th, 2016)
 
