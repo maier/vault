@@ -304,11 +304,13 @@ func TestBackend_role_CRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	expectedStruct.RoleID = actualStruct.RoleID
 	if !reflect.DeepEqual(expectedStruct, actualStruct) {
 		t.Fatalf("bad:\nexpected:%#v\nactual:%#v\n", expectedStruct, actualStruct)
 	}
 
 	roleData = map[string]interface{}{
+		"role_id":            "test_role_id",
 		"policies":           "a,b,c,d",
 		"secret_id_num_uses": 100,
 		"secret_id_ttl":      3000,
@@ -330,6 +332,7 @@ func TestBackend_role_CRUD(t *testing.T) {
 	}
 
 	expected = map[string]interface{}{
+		"role_id":            "test_role_id",
 		"policies":           []string{"a", "b", "c", "d", "default"},
 		"secret_id_num_uses": 100,
 		"secret_id_ttl":      3000,
@@ -348,6 +351,33 @@ func TestBackend_role_CRUD(t *testing.T) {
 
 	if !reflect.DeepEqual(expectedStruct, actualStruct) {
 		t.Fatalf("bad:\nexpected:%#v\nactual:%#v\n", expectedStruct, actualStruct)
+	}
+
+	// RU for role_id field
+	roleReq.Path = "role/role1/role-id"
+	roleReq.Operation = logical.ReadOperation
+	resp, err = b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("err:%v resp:%#v", err, resp)
+	}
+	if resp.Data["role_id"].(string) != "test_role_id" {
+		t.Fatalf("bad: role_id: expected:false actual:%t\n", resp.Data["role_id"].(string))
+	}
+
+	roleReq.Data = map[string]interface{}{"role_id": "custom_role_id"}
+	roleReq.Operation = logical.UpdateOperation
+	resp, err = b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("err:%v resp:%#v", err, resp)
+	}
+
+	roleReq.Operation = logical.ReadOperation
+	resp, err = b.HandleRequest(roleReq)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("err:%v resp:%#v", err, resp)
+	}
+	if resp.Data["role_id"].(string) != "custom_role_id" {
+		t.Fatalf("bad: role_id: expected:false actual:%t\n", resp.Data["role_id"].(string))
 	}
 
 	// RUD for bound_secret_id field

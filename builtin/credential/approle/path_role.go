@@ -130,6 +130,10 @@ be fixed, if this value is not modified. If the Period in the
 Role is modified, the token will pick up the new value during
 its next renewal.`,
 				},
+				"role_id": &framework.FieldSchema{
+					Type:        framework.TypeString,
+					Description: "Identifier of the role. Defaults to a UUID.",
+				},
 			},
 			ExistenceCheck: b.pathRoleExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -318,9 +322,14 @@ its next renewal.`,
 					Type:        framework.TypeString,
 					Description: "Name of the Role.",
 				},
+				"role_id": &framework.FieldSchema{
+					Type:        framework.TypeString,
+					Description: "Identifier of the role. Defaults to a UUID.",
+				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
-				logical.ReadOperation: b.pathRoleRoleIDRead,
+				logical.ReadOperation:   b.pathRoleRoleIDRead,
+				logical.UpdateOperation: b.pathRoleRoleIDUpdate,
 			},
 			HelpSynopsis:    strings.TrimSpace(roleHelp["role-id"][0]),
 			HelpDescription: strings.TrimSpace(roleHelp["role-id"][1]),
@@ -536,20 +545,25 @@ func (b *backend) pathRoleCreateUpdate(req *logical.Request, data *framework.Fie
 
 	// Create a new entry object if this is a CreateOperation
 	if role == nil && req.Operation == logical.CreateOperation {
-		roleID, err := uuid.GenerateUUID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create role_id: %s\n", err)
-		}
 		hmacKey, err := uuid.GenerateUUID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create role_id: %s\n", err)
 		}
 		role = &roleStorageEntry{
-			RoleID:  roleID,
 			HMACKey: hmacKey,
 		}
 	} else if role == nil {
 		return nil, fmt.Errorf("Role entry not found when the requested operation is to update it")
+	}
+
+	if roleIDRaw, ok := data.GetOk("role_id"); ok {
+		role.RoleID = roleIDRaw.(string)
+	} else if req.Operation == logical.CreateOperation {
+		roleID, err := uuid.GenerateUUID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate role_id: %s\n", err)
+		}
+		role.RoleID = roleID
 	}
 
 	if boundSecretIDRaw, ok := data.GetOk("bound_secret_id"); ok {
@@ -647,7 +661,6 @@ func (b *backend) pathRoleRead(req *logical.Request, data *framework.FieldData) 
 
 		// Create a map of data to be returned and remove sensitive information from it
 		data := structs.New(role).Map()
-		delete(data, "role_id")
 		delete(data, "hmac_key")
 
 		return &logical.Response{
@@ -1001,6 +1014,28 @@ func (b *backend) pathRoleSecretIDNumUsesUpdate(req *logical.Request, data *fram
 		return nil, b.setRoleEntry(req.Storage, roleName, role)
 	} else {
 		return logical.ErrorResponse("missing secret_id_num_uses"), nil
+	}
+}
+
+func (b *backend) pathRoleRoleIDUpdate(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	roleName := data.Get("role_name").(string)
+	if roleName == "" {
+		return logical.ErrorResponse("missing role_name"), nil
+	}
+
+	role, err := b.roleEntry(req.Storage, strings.ToLower(roleName))
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, nil
+	}
+
+	if roleIDRaw, ok := data.GetOk("role_id"); ok {
+		role.RoleID = roleIDRaw.(string)
+		return nil, b.setRoleEntry(req.Storage, roleName, role)
+	} else {
+		return logical.ErrorResponse("missing role_id"), nil
 	}
 }
 
