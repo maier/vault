@@ -143,6 +143,10 @@ func (b *backend) verifyCredentials(req *logical.Request) (*ParsedCert, *logical
 	}
 	connState := req.Connection.ConnState
 
+	if connState.PeerCertificates == nil || len(connState.PeerCertificates) == 0 {
+		return nil, logical.ErrorResponse("client certificate must be supplied"), nil
+	}
+
 	// Load the trusted certificates
 	roots, trusted, trustedNonCAs := b.loadTrustedCerts(req.Storage)
 
@@ -210,6 +214,8 @@ func (b *backend) matchPolicy(chains [][]*x509.Certificate, trusted []*ParsedCer
 // loadTrustedCerts is used to load all the trusted certificates from the backend
 func (b *backend) loadTrustedCerts(store logical.Storage) (pool *x509.CertPool, trusted []*ParsedCert, trustedNonCAs []*ParsedCert) {
 	pool = x509.NewCertPool()
+	trusted = make([]*ParsedCert, 0)
+	trustedNonCAs = make([]*ParsedCert, 0)
 	names, err := store.List("cert/")
 	if err != nil {
 		b.Logger().Printf("[ERR] cert: failed to list trusted certs: %v", err)

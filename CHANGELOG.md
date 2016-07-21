@@ -48,30 +48,38 @@ IMPROVEMENTS:
  * core: Response wrapping is now enabled for login endpoints [GH-1588]
  * core: The duration of leadership is now exported via events through
    telemetry [GH-1625]
- * credential/aws-ec2: Added a new constraint, 'bound_account_id' to the role
+ * auth/aws-ec2: Added a new constraint, 'bound_account_id' to the role
    [GH-1523]
+ * auth/ldap, secret/cassandra, physical/consul: Clients with `tls.Config`
+   will have `MinVersion` set to TLS 1.2 by default. This is configurable.
  * physical/etcd: Support `ETCD_ADDR` env var for specifying addresses [GH-1576]
  * secret/aws: Listing of roles is supported now  [GH-1546]
  * secret/cassandra: Add `connect_timeout` value for Cassandra connection
    configuration [GH-1581]
  * secret/mssql,mysql,postgresql: Reading of connection settings is supported
    in all the sql backends [GH-1515]
- * credential/ldap, secret/cassandra, physical/consul: Clients with `tls.Config`
-   will have `MinVersion` set to TLS 1.2 by default.
- * logical/ssh: Added `allowed_roles` to vault-ssh-helper's config and returning
+ * secret/mysql: Added optional maximum idle connections value to MySQL 
+   connection configuration [GH-1616]
+ * secret/mysql: Use a combination of the role name and token display name in
+   generated user names and allow the length to be controlled [GH-1604]
+ * secret/ssh: Added `allowed_roles` to vault-ssh-helper's config and returning
    role name as part of response of `verify` API.
 
 BUG FIXES:
 
- * credential/aws-ec2: Added a nil check for stored whitelist identity object
+ * auth/aws-ec2: Added a nil check for stored whitelist identity object
    during renewal [GH-1542]
+ * auth/cert: Fix panic if no client certificate is supplied [GH-1637]
  * core: Fix regression causing status codes to be `400` in most non-5xx error
    cases [GH-1553]
  * core: Fix panic that could occur during a leadership transition [GH-1627]
  * secret/postgresql: Handle revoking roles that have privileges on sequences
    [GH-1573]
+ * secret/postgresql: Check for existence of role before attempting deletion
+   [GH-1575]
  * secret/postgresql(,mysql,mssql): Fix incorrect use of database over
    transaction object which could lead to connection exhaustion [GH-1572]
+ * secret/pki: Fix parsing CA bundle containing trailing whitespace [GH-1634]
  * physical/postgres: Remove use of prepared statements as this causes
    connection multiplexing software to break [GH-1548]
  * physical/consul: Multiple Vault nodes on the same machine leading to check ID
