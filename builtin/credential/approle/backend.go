@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/hashicorp/vault/helper/locksutil"
 	"github.com/hashicorp/vault/helper/salt"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -68,14 +69,16 @@ func Backend(conf *logical.BackendConfig) (*backend, error) {
 		secretIDLocksMap: map[string]*sync.RWMutex{},
 	}
 
-	// Create 256 of locks each for managing RoleID and SecretIDs. This will avoid
+	// Create 256 locks each for managing RoleID and SecretIDs. This will avoid
 	// a superfluous number of locks directly proportional to the number of RoleID
 	// and SecretIDs. These locks can be accessed by indexing based on the first two
 	// characters of a randomly generated UUID.
-	for i := int64(0); i < 256; i++ {
-		index := fmt.Sprintf("%02x", i)
-		b.roleIDLocksMap[index] = &sync.RWMutex{}
-		b.secretIDLocksMap[index] = &sync.RWMutex{}
+	if err = locksutil.CreateLocks(b.roleIDLocksMap, 256); err != nil {
+		return nil, fmt.Errorf("failed to create role ID locks: %v", err)
+	}
+
+	if err = locksutil.CreateLocks(b.secretIDLocksMap, 256); err != nil {
+		return nil, fmt.Errorf("failed to create secret ID locks: %v", err)
 	}
 
 	// Have an extra lock to use in case the indexing does not result in a lock.
