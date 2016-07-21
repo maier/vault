@@ -14,25 +14,25 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
-// roleStorageEntry stores all the options that are set on an Role
+// roleStorageEntry stores all the options that are set on an role
 type roleStorageEntry struct {
-	// UUID that uniquely represents this Role. This serves as a credential
-	// to perform login using this Role.
+	// UUID that uniquely represents this role. This serves as a credential
+	// to perform login using this role.
 	RoleID string `json:"role_id" structs:"role_id" mapstructure:"role_id"`
 
 	// UUID that serves as the HMAC key for the hashing the 'secret_id's
-	// of the Role
+	// of the role
 	HMACKey string `json:"hmac_key" structs:"hmac_key" mapstructure:"hmac_key"`
 
-	// Policies that are to be required by the token to access this Role
+	// Policies that are to be required by the token to access this role
 	Policies []string `json:"policies" structs:"policies" mapstructure:"policies"`
 
-	// Number of times the SecretID generated against this Role can be
+	// Number of times the SecretID generated against this role can be
 	// used to perform login operation
 	SecretIDNumUses int `json:"secret_id_num_uses" structs:"secret_id_num_uses" mapstructure:"secret_id_num_uses"`
 
 	// Duration (less than the backend mount's max TTL) after which a
-	// SecretID generated against the Role will expire
+	// SecretID generated against the role will expire
 	SecretIDTTL time.Duration `json:"secret_id_ttl" structs:"secret_id_ttl" mapstructure:"secret_id_ttl"`
 
 	// Duration before which an issued token must be renewed
@@ -47,19 +47,19 @@ type roleStorageEntry struct {
 	// A constraint, if set, specifies the CIDR blocks from which logins should be allowed
 	BoundCIDRList string `json:"bound_cidr_list" structs:"bound_cidr_list" mapstructure:"bound_cidr_list"`
 
-	// Period, if set, indicates that the token generated using this Role
+	// Period, if set, indicates that the token generated using this role
 	// should never expire. The token should be renewed within the duration
 	// specified by this value. The renewal duration will be fixed if the
-	// value is not modified on the Role. If the `Period` in the Role is modified,
+	// value is not modified on the role. If the `Period` in the role is modified,
 	// a token will pick up the new value during its next renewal.
 	Period time.Duration `json:"period" mapstructure:"period" structs:"period"`
 }
 
-// rolePaths creates all the paths that are used to register and manage an Role.
+// rolePaths creates all the paths that are used to register and manage an role.
 //
 // Paths returned:
-// role/ - For listing all the registered Roles
-// role/<role_name> - For registering an Role
+// role/ - For listing all the registered roles
+// role/<role_name> - For registering an role
 // role/<role_name>/policies - For updating the param
 // role/<role_name>/secret-id-num-uses - For updating the param
 // role/<role_name>/secret-id-ttl - For updating the param
@@ -68,10 +68,10 @@ type roleStorageEntry struct {
 // role/<role_name>/bound-secret-id - For updating the param
 // role/<role_name>/bound-cidr-list - For updating the param
 // role/<role_name>/period - For updating the param
-// role/<role_name>/role-id - For fetching the role_id of an Role
-// role/<role_name>/secret-id - For issuing a secret_id against an Role, also to list the secret_id_accessorss
+// role/<role_name>/role-id - For fetching the role_id of an role
+// role/<role_name>/secret-id - For issuing a secret_id against an role, also to list the secret_id_accessorss
 // role/<role_name>/secret-id/<secret_id_accessor> - For reading the properties of, or deleting a secret_id
-// role/<role_name>/custom-secret-id - For assigning a custom SecretID against an Role
+// role/<role_name>/custom-secret-id - For assigning a custom SecretID against an role
 func rolePaths(b *backend) []*framework.Path {
 	return []*framework.Path{
 		&framework.Path{
@@ -87,12 +87,12 @@ func rolePaths(b *backend) []*framework.Path {
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"bound_secret_id": &framework.FieldSchema{
 					Type:        framework.TypeBool,
 					Default:     true,
-					Description: "Impose secret_id to be presented when logging in using this Role. Defaults to 'true'.",
+					Description: "Impose secret_id to be presented when logging in using this role. Defaults to 'true'.",
 				},
 				"bound_cidr_list": &framework.FieldSchema{
 					Type: framework.TypeString,
@@ -102,11 +102,11 @@ addresses which can perform the login operation`,
 				"policies": &framework.FieldSchema{
 					Type:        framework.TypeString,
 					Default:     "default",
-					Description: "Comma separated list of policies on the Role.",
+					Description: "Comma separated list of policies on the role.",
 				},
 				"secret_id_num_uses": &framework.FieldSchema{
 					Type:        framework.TypeInt,
-					Description: "Number of times a SecretID can access the Role, after which the SecretID will expire.",
+					Description: "Number of times a SecretID can access the role, after which the SecretID will expire.",
 				},
 				"secret_id_ttl": &framework.FieldSchema{
 					Type:        framework.TypeDurationSecond,
@@ -123,12 +123,12 @@ addresses which can perform the login operation`,
 				"period": &framework.FieldSchema{
 					Type:    framework.TypeDurationSecond,
 					Default: 0,
-					Description: `If set, indicates that the token generated using this Role
+					Description: `If set, indicates that the token generated using this role
 should never expire. The token should be renewed within the
 duration specified by this value. The renewal duration will
-be fixed, if this value is not modified. If the Period in the
-Role is modified, the token will pick up the new value during
-its next renewal.`,
+be fixed, if this value is not modified. If the 'period' in
+the role is modified, the token will pick up the new value
+during its next renewal.`,
 				},
 				"role_id": &framework.FieldSchema{
 					Type:        framework.TypeString,
@@ -150,12 +150,12 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"policies": &framework.FieldSchema{
 					Type:        framework.TypeString,
 					Default:     "default",
-					Description: "Comma separated list of policies on the Role.",
+					Description: "Comma separated list of policies on the role.",
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -171,7 +171,7 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"bound_cidr_list": &framework.FieldSchema{
 					Type: framework.TypeString,
@@ -192,12 +192,12 @@ addresses which can perform the login operation`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"bound_secret_id": &framework.FieldSchema{
 					Type:        framework.TypeBool,
 					Default:     true,
-					Description: "Impose secret_id to be presented when logging in using this Role.",
+					Description: "Impose secret_id to be presented when logging in using this role.",
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -213,11 +213,11 @@ addresses which can perform the login operation`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"secret_id_num_uses": &framework.FieldSchema{
 					Type:        framework.TypeInt,
-					Description: "Number of times a SecretID can access the Role, after which the SecretID will expire.",
+					Description: "Number of times a SecretID can access the role, after which the SecretID will expire.",
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -233,7 +233,7 @@ addresses which can perform the login operation`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"secret_id_ttl": &framework.FieldSchema{
 					Type:        framework.TypeDurationSecond,
@@ -253,17 +253,17 @@ addresses which can perform the login operation`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"period": &framework.FieldSchema{
 					Type:    framework.TypeDurationSecond,
 					Default: 0,
-					Description: `If set, indicates that the token generated using this Role
+					Description: `If set, indicates that the token generated using this role
 should never expire. The token should be renewed within the
 duration specified by this value. The renewal duration will
-be fixed if this value is not modified. If the Period in the
-Role is modified, the token will pick up the new value during
-its next renewal.`,
+be fixed if this value is not modified. If the 'period' in
+the role is modified, the token will pick up the new value
+during its next renewal.`,
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -280,7 +280,7 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"token_ttl": &framework.FieldSchema{
 					Type:        framework.TypeDurationSecond,
@@ -300,7 +300,7 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"token_max_ttl": &framework.FieldSchema{
 					Type:        framework.TypeDurationSecond,
@@ -320,7 +320,7 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"role_id": &framework.FieldSchema{
 					Type:        framework.TypeString,
@@ -339,7 +339,7 @@ its next renewal.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"metadata": &framework.FieldSchema{
 					Type: framework.TypeString,
@@ -359,7 +359,7 @@ formatted string containing the metadata in key value pairs.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"secret_id_accessor": &framework.FieldSchema{
 					Type:        framework.TypeString,
@@ -378,11 +378,11 @@ formatted string containing the metadata in key value pairs.`,
 			Fields: map[string]*framework.FieldSchema{
 				"role_name": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "Name of the Role.",
+					Description: "Name of the role.",
 				},
 				"secret_id": &framework.FieldSchema{
 					Type:        framework.TypeString,
-					Description: "SecretID to be attached to the Role.",
+					Description: "SecretID to be attached to the role.",
 				},
 				"metadata": &framework.FieldSchema{
 					Type: framework.TypeString,
@@ -419,7 +419,7 @@ func (b *backend) pathRoleList(req *logical.Request, data *framework.FieldData) 
 	return logical.ListResponse(roles), nil
 }
 
-// pathRoleSecretIDList is used to list all the 'secret_id_accessor's issued against the Role.
+// pathRoleSecretIDList is used to list all the 'secret_id_accessor's issued against the role.
 func (b *backend) pathRoleSecretIDList(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("role_name").(string)
 	if roleName == "" {
@@ -481,13 +481,13 @@ func (b *backend) pathRoleSecretIDList(req *logical.Request, data *framework.Fie
 	return logical.ListResponse(listItems), nil
 }
 
-// setRoleEntry grabs a write lock and stores the options on an Role into the storage.
-// Also creates a reverse index from the Role's RoleID to the Role itself.
+// setRoleEntry grabs a write lock and stores the options on an role into the storage.
+// Also creates a reverse index from the role's RoleID to the role itself.
 func (b *backend) setRoleEntry(s logical.Storage, roleName string, role *roleStorageEntry) error {
 	b.roleLock.Lock()
 	defer b.roleLock.Unlock()
 
-	// Create a storage entry for the Role
+	// Create a storage entry for the role
 	entry, err := logical.StorageEntryJSON("role/"+strings.ToLower(roleName), role)
 	if err != nil {
 		return err
@@ -499,7 +499,7 @@ func (b *backend) setRoleEntry(s logical.Storage, roleName string, role *roleSto
 		return err
 	}
 
-	// Create a storage entry for reverse mroleing of RoleID to Role.
+	// Create a storage entry for reverse mroleing of RoleID to role.
 	// Note that secondary index is created when the roleLock is held.
 	return b.setRoleIDEntry(s, role.RoleID, &roleIDStorageEntry{
 		Type: "role",
@@ -507,7 +507,7 @@ func (b *backend) setRoleEntry(s logical.Storage, roleName string, role *roleSto
 	})
 }
 
-// roleEntry grabs the read lock and fetches the options of an Role from the storage
+// roleEntry grabs the read lock and fetches the options of an role from the storage
 func (b *backend) roleEntry(s logical.Storage, roleName string) (*roleStorageEntry, error) {
 	if roleName == "" {
 		return nil, fmt.Errorf("missing role_name")
@@ -529,15 +529,15 @@ func (b *backend) roleEntry(s logical.Storage, roleName string) (*roleStorageEnt
 	return &result, nil
 }
 
-// pathRoleCreateUpdate registers a new Role with the backend or updates the options
-// of an existing Role
+// pathRoleCreateUpdate registers a new role with the backend or updates the options
+// of an existing role
 func (b *backend) pathRoleCreateUpdate(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("role_name").(string)
 	if roleName == "" {
 		return logical.ErrorResponse("missing role_name"), nil
 	}
 
-	// Check if the Role already exists
+	// Check if the role already exists
 	role, err := b.roleEntry(req.Storage, roleName)
 	if err != nil {
 		return nil, err
@@ -564,6 +564,9 @@ func (b *backend) pathRoleCreateUpdate(req *logical.Request, data *framework.Fie
 			return nil, fmt.Errorf("failed to generate role_id: %s\n", err)
 		}
 		role.RoleID = roleID
+	}
+	if role.RoleID == "" {
+		return logical.ErrorResponse("invalid role_id"), nil
 	}
 
 	if boundSecretIDRaw, ok := data.GetOk("bound_secret_id"); ok {
@@ -641,7 +644,7 @@ func (b *backend) pathRoleCreateUpdate(req *logical.Request, data *framework.Fie
 	return resp, b.setRoleEntry(req.Storage, roleName, role)
 }
 
-// pathRoleRead grabs a read lock and reads the options set on the Role from the storage
+// pathRoleRead grabs a read lock and reads the options set on the role from the storage
 func (b *backend) pathRoleRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("role_name").(string)
 	if roleName == "" {
@@ -661,6 +664,7 @@ func (b *backend) pathRoleRead(req *logical.Request, data *framework.FieldData) 
 
 		// Create a map of data to be returned and remove sensitive information from it
 		data := structs.New(role).Map()
+		delete(data, "role_id")
 		delete(data, "hmac_key")
 
 		return &logical.Response{
@@ -669,7 +673,7 @@ func (b *backend) pathRoleRead(req *logical.Request, data *framework.FieldData) 
 	}
 }
 
-// pathRoleDelete removes the Role from the storage
+// pathRoleDelete removes the role from the storage
 func (b *backend) pathRoleDelete(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("role_name").(string)
 	if roleName == "" {
@@ -690,12 +694,12 @@ func (b *backend) pathRoleDelete(req *logical.Request, data *framework.FieldData
 		return nil, fmt.Errorf("failed to invalidate the secrets belonging to role '%s': %s", roleName, err)
 	}
 
-	// Delete the reverse mroleing from RoleID to the Role
+	// Delete the reverse mroleing from RoleID to the role
 	if err = b.roleIDEntryDelete(req.Storage, role.RoleID); err != nil {
 		return nil, fmt.Errorf("failed to delete the mroleing from RoleID to role '%s': %s", roleName, err)
 	}
 
-	// After deleting the SecretIDs and the RoleID, delete the Role itself
+	// After deleting the SecretIDs and the RoleID, delete the role itself
 	if err = req.Storage.Delete("role/" + strings.ToLower(roleName)); err != nil {
 		return nil, err
 	}
@@ -716,7 +720,7 @@ func (b *backend) pathRoleSecretIDAccessorRead(req *logical.Request, data *frame
 	}
 
 	// SecretID is indexed based on salted RoleID and HMACed SecretID.
-	// Get the Role details to fetch the RoleID and accessor to get
+	// Get the role details to fetch the RoleID and accessor to get
 	// the HMAC-ed SecretID.
 
 	role, err := b.roleEntry(req.Storage, strings.ToLower(roleName))
@@ -768,7 +772,7 @@ func (b *backend) pathRoleSecretIDAccessorDelete(req *logical.Request, data *fra
 	}
 
 	// SecretID is indexed based on salted RoleID and HMACed SecretID.
-	// Get the Role details to fetch the RoleID and accessor to get
+	// Get the role details to fetch the RoleID and accessor to get
 	// the HMAC-ed SecretID.
 
 	role, err := b.roleEntry(req.Storage, strings.ToLower(roleName))
@@ -821,15 +825,16 @@ func (b *backend) pathRoleBoundCIDRListUpdate(req *logical.Request, data *framew
 		return nil, nil
 	}
 
-	if boundCIDRListRaw, ok := data.GetOk("bound_cidr_list"); ok {
-		role.BoundCIDRList = strings.TrimSpace(boundCIDRListRaw.(string))
-		if err = validateCIDRList(role.BoundCIDRList); err != nil {
-			return logical.ErrorResponse(fmt.Sprintf("failed to validate CIDR blocks: %s", err)), nil
-		}
-		return nil, b.setRoleEntry(req.Storage, roleName, role)
-	} else {
+	role.BoundCIDRList = strings.TrimSpace(data.Get("bound_cidr_list").(string))
+	if role.BoundCIDRList == "" {
 		return logical.ErrorResponse("missing bound_cidr_list"), nil
 	}
+
+	if err = validateCIDRList(role.BoundCIDRList); err != nil {
+		return logical.ErrorResponse(fmt.Sprintf("failed to validate CIDR blocks: %s", err)), nil
+	}
+
+	return nil, b.setRoleEntry(req.Storage, roleName, role)
 }
 
 func (b *backend) pathRoleBoundCIDRListRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -946,12 +951,14 @@ func (b *backend) pathRolePoliciesUpdate(req *logical.Request, data *framework.F
 		return nil, nil
 	}
 
-	if policiesRaw, ok := data.GetOk("policies"); ok {
-		role.Policies = policyutil.ParsePolicies(policiesRaw.(string))
-		return nil, b.setRoleEntry(req.Storage, roleName, role)
-	} else {
+	policies := strings.TrimSpace(data.Get("policies").(string))
+	if policies == "" {
 		return logical.ErrorResponse("missing policies"), nil
 	}
+
+	role.Policies = policyutil.ParsePolicies(policies)
+
+	return nil, b.setRoleEntry(req.Storage, roleName, role)
 }
 
 func (b *backend) pathRolePoliciesRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -1031,12 +1038,12 @@ func (b *backend) pathRoleRoleIDUpdate(req *logical.Request, data *framework.Fie
 		return nil, nil
 	}
 
-	if roleIDRaw, ok := data.GetOk("role_id"); ok {
-		role.RoleID = roleIDRaw.(string)
-		return nil, b.setRoleEntry(req.Storage, roleName, role)
-	} else {
+	role.RoleID = data.Get("role_id").(string)
+	if role.RoleID == "" {
 		return logical.ErrorResponse("missing role_id"), nil
 	}
+
+	return nil, b.setRoleEntry(req.Storage, roleName, role)
 }
 
 func (b *backend) pathRoleRoleIDRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -1429,23 +1436,23 @@ func validateCIDRList(cidrList string) error {
 
 var roleHelp = map[string][2]string{
 	"role-list": {
-		"Lists all the Roles registered with the backend.",
-		"The list will contain the names of the Roles.",
+		"Lists all the roles registered with the backend.",
+		"The list will contain the names of the roles.",
 	},
 	"role": {
-		"Register an Role with the backend.",
-		`An Role can represent a service, a machine or anything that can be IDed.
-The set of policies on the Role defines access to the Role, meaning, any
+		"Register an role with the backend.",
+		`A role can represent a service, a machine or anything that can be IDed.
+The set of policies on the role defines access to the role, meaning, any
 Vault token with a policy set that is a superset of the policies on the
-Role registered here will have access to the Role. If a SecretID is desired
-to be generated against only this specific Role, it can be done via
+role registered here will have access to the role. If a SecretID is desired
+to be generated against only this specific role, it can be done via
 'role/<role_name>/secret-id' and 'role/<role_name>/custom-secret-id' endpoints.
-The properties of the SecretID created against the Role and the properties
-of the token issued with the SecretID generated againt the Role, can be
+The properties of the SecretID created against the role and the properties
+of the token issued with the SecretID generated againt the role, can be
 configured using the parameters of this endpoint.`,
 	},
 	"role-bound-secret-id": {
-		"Impose secret_id to be presented during login using this Role.",
+		"Impose secret_id to be presented during login using this role.",
 		`By setting this to 'true', during login the parameter 'secret_id' becomes a mandatory argument.
 The value of 'secret_id' can be retrieved using 'role/<role_name>/secret-id' endpoint.`,
 	},
@@ -1457,21 +1464,21 @@ belongs to the CIDR blocks specified. If CIDR blocks were set and if the
 IP is not encompassed by it, login fails`,
 	},
 	"role-policies": {
-		"Policies of the Role.",
-		`A comma-delimited set of Vault policies that defines access to the Role.
+		"Policies of the role.",
+		`A comma-delimited set of Vault policies that defines access to the role.
 All the Vault tokens with policies that encompass the policy set
-defined on the Role, can access the Role.`,
+defined on the role, can access the role.`,
 	},
 	"role-num-uses": {
-		"Use limit of the SecretID generated against the Role.",
-		`If the SecretIDs are generated/assigned against the Role using the
+		"Use limit of the SecretID generated against the role.",
+		`If the SecretIDs are generated/assigned against the role using the
 'role/<role_name>/secret-id' or 'role/<role_name>/custom-secret-id' endpoints,
-then the number of times that SecretID can access the Role is defined by
+then the number of times that SecretID can access the role is defined by
 this option.`,
 	},
 	"role-secret-id-ttl": {
 		`Duration in seconds, representing the lifetime of the SecretIDs
-that are generated against the Role using 'role/<role_name>/secret-id' or
+that are generated against the role using 'role/<role_name>/secret-id' or
 'role/<role_name>/custom-secret-id' endpoints.`,
 		``,
 	},
@@ -1486,17 +1493,17 @@ the 'secret_id's as well.`,
 	},
 	"role-token-ttl": {
 		`Duration in seconds, the lifetime of the token issued by using the SecretID that
-is generated against this Role, before which the token needs to be renewed.`,
-		`If SecretIDs are generated against the Role, using 'role/<role_name>/secret-id' or the
+is generated against this role, before which the token needs to be renewed.`,
+		`If SecretIDs are generated against the role, using 'role/<role_name>/secret-id' or the
 'role/<role_name>/custom-secret-id' endpoints, and if those SecretIDs are used
 to perform the login operation, then the value of 'token-ttl' defines the
 lifetime of the token issued, before which the token needs to be renewed.`,
 	},
 	"role-token-max-ttl": {
 		`Duration in seconds, the maximum lifetime of the tokens issued by using
-the SecretIDs that were generated against this Role, after which the
+the SecretIDs that were generated against this role, after which the
 tokens are not allowed to be renewed.`,
-		`If SecretIDs are generated against the Role using 'role/<role_name>/secret-id'
+		`If SecretIDs are generated against the role using 'role/<role_name>/secret-id'
 or the 'role/<role_name>/custom-secret-id' endpoints, and if those SecretIDs
 are used to perform the login operation, then the value of 'token-max-ttl'
 defines the maximum lifetime of the tokens issued, after which the tokens
@@ -1504,34 +1511,34 @@ cannot be renewed. A reauthentication is required after this duration.
 This value will be croleed by the backend mount's maximum TTL value.`,
 	},
 	"role-id": {
-		"Returns the 'role_id' of the Role.",
-		`If login is performed from an Role, then its 'role_id' should be presented
+		"Returns the 'role_id' of the role.",
+		`If login is performed from an role, then its 'role_id' should be presented
 as a credential during the login. This 'role_id' can be retrieved using
 this endpoint.`,
 	},
 	"role-secret-id": {
-		"Generate a SecretID against this Role.",
+		"Generate a SecretID against this role.",
 		`The SecretID generated using this endpoint will be scoped to access
-just this Role and none else. The properties of this SecretID will be
-based on the options set on the Role. It will expire after a period
-defined by the 'secret_id_ttl' option on the Role and/or the backend
+just this role and none else. The properties of this SecretID will be
+based on the options set on the role. It will expire after a period
+defined by the 'secret_id_ttl' option on the role and/or the backend
 mount's maximum TTL value.`,
 	},
 	"role-custom-secret-id": {
-		"Assign a SecretID of choice against the Role.",
+		"Assign a SecretID of choice against the role.",
 		`This option is not recommended unless there is a specific need
 to do so. This will assign a client supplied SecretID to be used to access
-the Role. This SecretID will behave similarly to the SecretIDs generated by
+the role. This SecretID will behave similarly to the SecretIDs generated by
 the backend. The properties of this SecretID will be based on the options
-set on the Role. It will expire after a period defined by the 'secret_id_ttl'
-option on the Role and/or the backend mount's maximum TTL value.`,
+set on the role. It will expire after a period defined by the 'secret_id_ttl'
+option on the role and/or the backend mount's maximum TTL value.`,
 	},
 	"role-period": {
-		"Updates the value of 'period' on the Role",
-		`If set,  indicates that the token generated using this Role
+		"Updates the value of 'period' on the role",
+		`If set,  indicates that the token generated using this role
 should never expire. The token should be renewed within the
 duration specified by this value. The renewal duration will
-be fixed. If the Period in the Role is modified, the token
+be fixed. If the Period in the role is modified, the token
 will pick up the new value during its next renewal.`,
 	},
 }

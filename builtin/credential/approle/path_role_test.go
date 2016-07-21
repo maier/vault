@@ -332,7 +332,6 @@ func TestBackend_role_CRUD(t *testing.T) {
 	}
 
 	expected = map[string]interface{}{
-		"role_id":            "test_role_id",
 		"policies":           []string{"a", "b", "c", "d", "default"},
 		"secret_id_num_uses": 100,
 		"secret_id_ttl":      3000,
@@ -361,7 +360,7 @@ func TestBackend_role_CRUD(t *testing.T) {
 		t.Fatalf("err:%v resp:%#v", err, resp)
 	}
 	if resp.Data["role_id"].(string) != "test_role_id" {
-		t.Fatalf("bad: role_id: expected:false actual:%t\n", resp.Data["role_id"].(string))
+		t.Fatalf("bad: role_id: expected:test_role_id actual:%s\n", resp.Data["role_id"].(string))
 	}
 
 	roleReq.Data = map[string]interface{}{"role_id": "custom_role_id"}
@@ -377,7 +376,7 @@ func TestBackend_role_CRUD(t *testing.T) {
 		t.Fatalf("err:%v resp:%#v", err, resp)
 	}
 	if resp.Data["role_id"].(string) != "custom_role_id" {
-		t.Fatalf("bad: role_id: expected:false actual:%t\n", resp.Data["role_id"].(string))
+		t.Fatalf("bad: role_id: expected:custom_role_id actual:%s\n", resp.Data["role_id"].(string))
 	}
 
 	// RUD for bound_secret_id field
